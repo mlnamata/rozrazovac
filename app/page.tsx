@@ -94,26 +94,6 @@ export default function Home() {
           <p className="text-white text-4xl font-bold mb-4">
             Tvůj symbol: <span className="text-blue-400">{userData.teamLabel}</span>
           </p>
-          <div className="mt-8 bg-white p-6 rounded-lg shadow-lg max-w-3xl">
-            <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
-              Počty hráčů v každém týmu ({userData.teamStats.length} týmů)
-            </h3>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 max-h-64 overflow-y-auto">
-              {userData.teamStats.map((stat) => (
-                <div
-                  key={stat.id}
-                  className={`p-2 rounded-lg text-center font-bold text-sm transition ${
-                    stat.id === userData.teamId
-                      ? 'bg-blue-600 text-white scale-105 shadow-lg'
-                      : 'bg-gray-200 text-gray-800'
-                  }`}
-                >
-                  <p className="font-bold text-base">{stat.label}</p>
-                  <p className="text-lg font-bold">{stat.count}</p>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     );
