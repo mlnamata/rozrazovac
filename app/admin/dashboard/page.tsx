@@ -100,11 +100,14 @@ export default function AdminDashboard() {
           alert('Chyba při nastavování týmů');
           console.error(err);
         }
+      } else if (data.hint) {
+        // Vercel error - suggest URL mode
+        alert(`⚠️ ${data.error}\n\n${data.hint}\n\nProsím použijte URL mode níže.`);
       } else {
         alert(data.error || 'Chyba při nahrávání fotek');
       }
     } catch (err) {
-      alert('Chyba při nahrávání');
+      alert('Chyba při nahrávání. Zkuste používat URL mode níže.');
       console.error(err);
     } finally {
       setIsUploading(false);

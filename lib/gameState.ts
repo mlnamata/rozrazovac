@@ -1,4 +1,5 @@
 // In-memory state management for the game
+// Note: This resets on server restart. For production, use a database.
 
 export interface TeamImage {
   id: string;
@@ -31,63 +32,92 @@ export function getGameState(): GameState {
 }
 
 export function setTeams(images: TeamImage[]): void {
-  gameState.teams = images;
-  gameState.usersByTeam.clear();
-  images.forEach((img) => {
-    gameState.usersByTeam.set(img.id, []);
-  });
+  try {
+    gameState.teams = images || [];
+    gameState.usersByTeam.clear();
+    gameState.teams.forEach((img) => {
+      if (img && img.id) {
+        gameState.usersByTeam.set(img.id, []);
+      }
+    });
+  } catch (err) {
+    console.error('Error setting teams:', err);
+  }
 }
 
 export function startRound(): void {
-  gameState.status = 'ACTIVE';
-  gameState.users.clear();
-  gameState.usersByTeam.forEach((users) => {
-    users.length = 0;
-  });
+  try {
+    gameState.status = 'ACTIVE';
+    gameState.users.clear();
+    gameState.usersByTeam.forEach((users) => {
+      users.length = 0;
+    });
+  } catch (err) {
+    console.error('Error starting round:', err);
+  }
 }
 
 export function endRound(): void {
-  gameState.status = 'ENDED';
+  try {
+    gameState.status = 'ENDED';
+  } catch (err) {
+    console.error('Error ending round:', err);
+  }
 }
 
 export function resetGame(): void {
-  gameState.status = 'SETUP';
-  gameState.teams = [];
-  gameState.users.clear();
-  gameState.usersByTeam.clear();
+  try {
+    gameState.status = 'SETUP';
+    gameState.teams = [];
+    gameState.users.clear();
+    gameState.usersByTeam.clear();
+  } catch (err) {
+    console.error('Error resetting game:', err);
+  }
 }
 
 export function assignUserToTeam(userId: string): string | null {
-  // Find team with least members
-  if (gameState.teams.length === 0) return null;
+  try {
+    // Find team with least members
+    if (!gameState.teams || gameState.teams.length === 0) return null;
 
-  let minTeamId = gameState.teams[0].id;
-  let minCount = gameState.usersByTeam.get(minTeamId)?.length ?? 0;
+    let minTeamId = gameState.teams[0]?.id;
+    if (!minTeamId) return null;
 
-  for (const team of gameState.teams) {
-    const count = gameState.usersByTeam.get(team.id)?.length ?? 0;
-    if (count < minCount) {
-      minCount = count;
-      minTeamId = team.id;
+    let minCount = gameState.usersByTeam.get(minTeamId)?.length ?? 0;
+
+    for (const team of gameState.teams) {
+      if (!team || !team.id) continue;
+      const count = gameState.usersByTeam.get(team.id)?.length ?? 0;
+      if (count < minCount) {
+        minCount = count;
+        minTeamId = team.id;
+      }
     }
+
+    // Check if user already assigned
+    if (gameState.users.has(userId)) {
+      return gameState.users.get(userId)!.teamId;
+    }
+
+    // Assign user to team
+    const user: User = {
+      userId,
+      teamId: minTeamId,
+      joinedAt: Date.now(),
+    };
+
+    gameState.users.set(userId, user);
+    const teamUsers = gameState.usersByTeam.get(minTeamId);
+    if (teamUsers) {
+      teamUsers.push(userId);
+    }
+
+    return minTeamId;
+  } catch (err) {
+    console.error('Error assigning user to team:', err);
+    return null;
   }
-
-  // Check if user already assigned
-  if (gameState.users.has(userId)) {
-    return gameState.users.get(userId)!.teamId;
-  }
-
-  // Assign user to team
-  const user: User = {
-    userId,
-    teamId: minTeamId,
-    joinedAt: Date.now(),
-  };
-
-  gameState.users.set(userId, user);
-  gameState.usersByTeam.get(minTeamId)?.push(userId);
-
-  return minTeamId;
 }
 
 export function getTeamStats(): Array<{
@@ -96,18 +126,33 @@ export function getTeamStats(): Array<{
   url: string;
   count: number;
 }> {
-  return gameState.teams.map((team) => ({
-    id: team.id,
-    label: team.label,
-    url: team.url,
-    count: gameState.usersByTeam.get(team.id)?.length ?? 0,
-  }));
+  try {
+    return (gameState.teams || []).map((team) => ({
+      id: team.id,
+      label: team.label,
+      url: team.url,
+      count: gameState.usersByTeam.get(team.id)?.length ?? 0,
+    }));
+  } catch (err) {
+    console.error('Error getting team stats:', err);
+    return [];
+  }
 }
 
 export function getUserTeamId(userId: string): string | null {
-  return gameState.users.get(userId)?.teamId ?? null;
+  try {
+    return gameState.users.get(userId)?.teamId ?? null;
+  } catch (err) {
+    console.error('Error getting user team ID:', err);
+    return null;
+  }
 }
 
 export function getTotalUsers(): number {
-  return gameState.users.size;
+  try {
+    return gameState.users.size;
+  } catch (err) {
+    console.error('Error getting total users:', err);
+    return 0;
+  }
 }

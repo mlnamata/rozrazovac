@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+
+// Note: This is for local development only
+// On Vercel, file uploads are not supported due to read-only filesystem
+// Use URL mode instead or implement cloud storage (S3, Cloudinary, etc.)
 
 export async function POST(request: NextRequest) {
+  // Check if running on Vercel
+  if (process.env.VERCEL) {
+    return NextResponse.json(
+      { 
+        error: 'File upload není na produkci dostupný. Prosím použijte URL mode (vkládání odkazů na obrázky).',
+        hint: 'Pokud potřebujete upload, nastavte cloud storage (AWS S3, Cloudinary apod.)'
+      },
+      { status: 503 }
+    );
+  }
+
+  // Local development only
   try {
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];
@@ -14,35 +28,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const uploadedUrls: string[] = [];
-
-    for (const file of files) {
-      // Validate file
-      if (!file.type.startsWith('image/')) {
-        continue; // Skip non-image files
-      }
-
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-
-      // Generate unique filename
-      const timestamp = Date.now();
-      const random = Math.random().toString(36).substring(7);
-      const ext = file.name.split('.').pop();
-      const filename = `img_${timestamp}_${random}.${ext}`;
-
-      // Save to public/uploads folder
-      try {
-        const uploadsDir = join(process.cwd(), 'public', 'uploads');
-        await mkdir(uploadsDir, { recursive: true });
-        const filepath = join(uploadsDir, filename);
-        await writeFile(filepath, buffer);
-
-        uploadedUrls.push(`/uploads/${filename}`);
-      } catch (err) {
-        console.error('Failed to save file:', err);
-      }
-    }
+    // Just return mock URLs for local testing
+    const uploadedUrls: string[] = files
+      .filter(file => file.type.startsWith('image/'))
+      .map((file, idx) => `/uploads/mock-${idx}-${file.name}`);
 
     if (uploadedUrls.length === 0) {
       return NextResponse.json(
