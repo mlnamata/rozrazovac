@@ -7,7 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "push": "bash scripts/auto-push.sh"
+    "push": "bash scripts/auto-push.sh",
+    "daemon": "pm2 start ecosystem.config.js",
+    "daemon:stop": "pm2 stop rozrazovac",
+    "daemon:restart": "pm2 restart rozrazovac",
+    "daemon:logs": "pm2 logs rozrazovac",
+    "daemon:delete": "pm2 delete rozrazovac"
   },
   "dependencies": {
     "next": "16.1.6",
@@ -23,6 +28,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "husky": "^9.1.7",
+    "pm2": "^6.0.14",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

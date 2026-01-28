@@ -48,6 +48,10 @@ Makefile*
 Package-*
 private/
 _build/
+
+# PM2 daemon
+.pm2/
+ecosystem.config.js
 !cmake/**/user.cmake
 cmake/**/.generated/*
 cmake/**/CMake*
