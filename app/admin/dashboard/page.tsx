@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface TeamStat {
@@ -11,12 +11,14 @@ interface TeamStat {
 }
 
 export default function AdminDashboard() {
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [imageLinks, setImageLinks] = useState('');
   const [gameStatus, setGameStatus] = useState<'SETUP' | 'ACTIVE' | 'ENDED'>(
     'SETUP'
   );
   const [teamStats, setTeamStats] = useState<TeamStat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
   const router = useRouter();
 
   // Check auth on mount
@@ -52,6 +54,63 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setSelectedFiles(files);
+  };
+
+  const handleFileUpload = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (selectedFiles.length === 0) {
+      alert('Prosím vyberte alespoň jeden soubor');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      selectedFiles.forEach((file) => {
+        formData.append('files', file);
+      });
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      
+      if (res.ok && data.urls) {
+        try {
+          const gameRes = await fetch('/api/game', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'setTeams', teams: data.urls }),
+          });
+
+          if (gameRes.ok) {
+            const updatedGameRes = await fetch('/api/game');
+            const gameData = await updatedGameRes.json();
+            setGameStatus(gameData.status);
+            setSelectedFiles([]);
+            alert(`${data.urls.length} týmů bylo nastaveno! Nyní můžete spustit kolo.`);
+          }
+        } catch (err) {
+          alert('Chyba při nastavování týmů');
+          console.error(err);
+        }
+      } else {
+        alert(data.error || 'Chyba při nahrávání fotek');
+      }
+    } catch (err) {
+      alert('Chyba při nahrávání');
+      console.error(err);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleAddTeams = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const urls = imageLinks
@@ -76,6 +135,7 @@ export default function AdminDashboard() {
         const gameData = await gameRes.json();
         setGameStatus(gameData.status);
         alert('Týmy byly nastaveny! Nyní můžete spustit kolo.');
+
       }
     } catch (err) {
       alert('Chyba při nastavování týmů');
@@ -161,13 +221,72 @@ export default function AdminDashboard() {
         {/* Setup Section */}
         {gameStatus === 'SETUP' && (
           <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">
+            <h2 className="text-2xl font-bold mb-6 text-gray-800">
               Nastavení Týmů
             </h2>
-            <form onSubmit={handleAddTeams}>
-              <label className="block text-lg font-medium text-gray-700 mb-2">
-                Vložte adresy obrázků (jeden na řádek):
-              </label>
+
+            {/* File Upload Tab */}
+            <div className="mb-8">
+              <h3 className="text-xl font-bold mb-4 text-gray-700">
+                📁 Nahrát fotky z PC
+              </h3>
+              <form onSubmit={handleFileUpload}>
+                <div className="mb-4 p-6 border-2 border-dashed border-blue-400 rounded-lg bg-blue-50 text-center cursor-pointer hover:bg-blue-100 transition">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="file-input"
+                  />
+                  <label htmlFor="file-input" className="cursor-pointer block">
+                    <p className="text-lg font-semibold text-blue-600 mb-2">
+                      Klikněte nebo přetáhněte fotky sem
+                    </p>
+                    <p className="text-gray-600">
+                      {selectedFiles.length > 0
+                        ? `${selectedFiles.length} fotka(ek) vybráno`
+                        : 'Podporované formáty: PNG, JPG, GIF...'}
+                    </p>
+                  </label>
+                </div>
+
+                {selectedFiles.length > 0 && (
+                  <div className="mb-4 p-4 bg-gray-100 rounded-lg">
+                    <p className="font-semibold text-gray-800 mb-2">Vybrané soubory:</p>
+                    <ul className="text-sm text-gray-700">
+                      {selectedFiles.map((file, idx) => (
+                        <li key={idx} className="truncate">
+                          • {file.name}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isUploading || selectedFiles.length === 0}
+                  className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg text-lg hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {isUploading ? 'Nahrávám...' : 'Nahrát a Nastavit Týmy'}
+                </button>
+              </form>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t-2 border-gray-300 my-8"></div>
+
+            {/* URL Tab */}
+            <div>
+              <h3 className="text-xl font-bold mb-4 text-gray-700">
+                🔗 Nebo vložte adresy obrázků
+              </h3>
+              <form onSubmit={handleAddTeams}>
+                <label className="block text-lg font-medium text-gray-700 mb-2">
+                  Vložte adresy obrázků (jeden na řádek):
+                </label>
               <textarea
                 value={imageLinks}
                 onChange={(e) => setImageLinks(e.target.value)}
@@ -180,7 +299,8 @@ export default function AdminDashboard() {
               >
                 Uložit Týmy
               </button>
-            </form>
+              </form>
+            </div>
           </div>
         )}
 

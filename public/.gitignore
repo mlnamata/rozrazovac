@@ -1,0 +1,7 @@
+# Uploads folder - ignore local uploaded files
+/public/uploads/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
